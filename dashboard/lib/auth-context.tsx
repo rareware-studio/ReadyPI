@@ -1,0 +1,304 @@
+'use client';
+
+/**
+ * AuthProvider — Global Authentication Context
+ *
+ * Bridges Firebase Auth (frontend identity) with the ReadyPI backend (Postgres user record).
+ *
+ * Flow:
+ * 1. User signs in via Firebase Auth (email/password OR OAuth)
+ * 2. Firebase returns an ID token
+ * 3. We POST that token to our backend /auth/firebase-exchange
+ * 4. Backend verifies via Firebase Admin SDK, upserts the user in Postgres, returns a ReadyPI JWT
+ * 5. We store that JWT in localStorage for all subsequent API calls
+ *
+ * This allows us to use Firebase Auth's Google/GitHub OAuth while keeping our
+ * own user table, credits, and API key system intact.
+ */
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  type ReactNode,
+} from 'react';
+import {
+  auth,
+  googleProvider,
+  githubProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  isFirebaseConfigured,
+  type User as FirebaseUser,
+} from '@/lib/firebase';
+import { authAPI, type UserProfile } from '@/lib/api';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface AuthState {
+  firebaseUser: FirebaseUser | null;
+  user: UserProfile | null;
+  token: string | null;
+  loading: boolean;
+  error: string | null;
+}
+
+interface AuthContextValue extends AuthState {
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  signupWithEmail: (email: string, password: string, fullName?: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginWithGithub: () => Promise<void>;
+  logout: () => Promise<void>;
+  clearError: () => void;
+  refreshProfile: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+// ─── Provider ────────────────────────────────────────────────────────────────
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<AuthState>({
+    firebaseUser: null,
+    user: null,
+    token: null,
+    loading: true,
+    error: null,
+  });
+
+  // Utility to merge state
+  const patch = (partial: Partial<AuthState>) =>
+    setState((prev) => ({ ...prev, ...partial }));
+
+  /**
+   * Exchange Firebase ID token with our backend.
+   * On success, stores the ReadyPI JWT and user profile.
+   */
+  const exchangeToken = useCallback(async (fbUser: FirebaseUser) => {
+    try {
+      const idToken = await fbUser.getIdToken(true);
+      const { data } = await authAPI.firebaseExchange(idToken);
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('readypi_token', data.token);
+        localStorage.setItem('readypi_user', JSON.stringify(data.user));
+      }
+
+      // Fetch full profile (includes credits, API key count, etc.)
+      const { data: profile } = await authAPI.me();
+
+      patch({
+        firebaseUser: fbUser,
+        user: profile,
+        token: data.token,
+        loading: false,
+        error: null,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Token exchange failed';
+      patch({ loading: false, error: message });
+      throw err;
+    }
+  }, []);
+
+  /**
+   * Direct login (bypasses Firebase — uses our existing email/password endpoint).
+   * This is the fallback if Firebase Auth is not configured yet.
+   */
+  const loginDirect = useCallback(async (email: string, password: string) => {
+    const { data } = await authAPI.login(email, password);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('readypi_token', data.token);
+      localStorage.setItem('readypi_user', JSON.stringify(data.user));
+    }
+
+    const { data: profile } = await authAPI.me();
+
+    patch({
+      user: profile,
+      token: data.token,
+      loading: false,
+      error: null,
+    });
+  }, []);
+
+  // ─── Auth Methods ─────────────────────────────────────────────────────────
+
+  const loginWithEmail = useCallback(async (email: string, password: string) => {
+    patch({ loading: true, error: null });
+    try {
+      // Try Firebase Auth first; fall back to direct login if Firebase isn't configured
+      if (isFirebaseConfigured) {
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        await exchangeToken(credential.user);
+      } else {
+        await loginDirect(email, password);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Login failed';
+      // If Firebase auth fails, try direct backend login as fallback
+      try {
+        await loginDirect(email, password);
+      } catch (directErr: unknown) {
+        const directMessage = directErr instanceof Error ? directErr.message : 'Login failed';
+        patch({ loading: false, error: directMessage });
+        throw directErr;
+      }
+    }
+  }, [exchangeToken, loginDirect]);
+
+  const signupWithEmail = useCallback(async (email: string, password: string, fullName?: string) => {
+    patch({ loading: true, error: null });
+    try {
+      if (isFirebaseConfigured) {
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        await exchangeToken(credential.user);
+      } else {
+        // Direct signup via our backend
+        const { data } = await authAPI.signup(email, password, fullName);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('readypi_token', data.token);
+          localStorage.setItem('readypi_user', JSON.stringify(data.user));
+        }
+        const { data: profile } = await authAPI.me();
+        patch({ user: profile, token: data.token, loading: false, error: null });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Signup failed';
+      patch({ loading: false, error: message });
+      throw err;
+    }
+  }, [exchangeToken]);
+
+  const loginWithGoogle = useCallback(async () => {
+    patch({ loading: true, error: null });
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+      await exchangeToken(credential.user);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Google login failed';
+      patch({ loading: false, error: message });
+      throw err;
+    }
+  }, [exchangeToken]);
+
+  const loginWithGithub = useCallback(async () => {
+    patch({ loading: true, error: null });
+    try {
+      const credential = await signInWithPopup(auth, githubProvider);
+      await exchangeToken(credential.user);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'GitHub login failed';
+      patch({ loading: false, error: message });
+      throw err;
+    }
+  }, [exchangeToken]);
+
+  const logout = useCallback(async () => {
+    try {
+      await authAPI.logout().catch(() => {});
+      if (isFirebaseConfigured) {
+        await firebaseSignOut(auth).catch(() => {});
+      }
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('readypi_token');
+        localStorage.removeItem('readypi_user');
+      }
+      patch({ firebaseUser: null, user: null, token: null, loading: false, error: null });
+    }
+  }, []);
+
+  const clearError = useCallback(() => patch({ error: null }), []);
+
+  const refreshProfile = useCallback(async () => {
+    try {
+      const { data: profile } = await authAPI.me();
+      patch({ user: profile });
+    } catch {
+      // Silently fail if not authenticated
+    }
+  }, []);
+
+  // ─── On mount: restore session from localStorage ──────────────────────────
+
+  useEffect(() => {
+    // Check localStorage first for fast hydration
+    if (typeof window !== 'undefined') {
+      const savedToken = localStorage.getItem('readypi_token');
+      const savedUser = localStorage.getItem('readypi_user');
+
+      if (savedToken && savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          patch({ token: savedToken, user: parsedUser as UserProfile, loading: false });
+
+          // Refresh profile in background for freshness
+          authAPI.me()
+            .then(({ data }) => patch({ user: data }))
+            .catch(() => {
+              // Token expired — clear session
+              localStorage.removeItem('readypi_token');
+              localStorage.removeItem('readypi_user');
+              patch({ user: null, token: null });
+            });
+          return;
+        } catch {
+          localStorage.removeItem('readypi_user');
+        }
+      }
+    }
+
+    // If Firebase is configured, listen for auth state changes
+    if (isFirebaseConfigured) {
+      const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+        if (fbUser) {
+          try {
+            await exchangeToken(fbUser);
+          } catch {
+            patch({ loading: false });
+          }
+        } else {
+          patch({ firebaseUser: null, loading: false });
+        }
+      });
+      return () => unsubscribe();
+    }
+
+    // No Firebase, no saved token
+    patch({ loading: false });
+  }, [exchangeToken]);
+
+  return (
+    <AuthContext.Provider
+      value={{
+        ...state,
+        loginWithEmail,
+        signupWithEmail,
+        loginWithGoogle,
+        loginWithGithub,
+        logout,
+        clearError,
+        refreshProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used within an <AuthProvider>');
+  }
+  return ctx;
+}

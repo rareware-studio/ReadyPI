@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff6b4a" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#ff6b4a" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#ff6b4a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="piFill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff8a6a"/>
+      <stop offset="55%" stop-color="#ff6b4a"/>
+      <stop offset="100%" stop-color="#a02e15"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="#0a0a0f"/>
+  <circle cx="32" cy="32" r="28" fill="url(#halo)"/>
+  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+        font-family="Fraunces, 'Noto Serif', Georgia, serif"
+        font-weight="900" font-size="44" fill="url(#piFill)">π</text>
+</svg>

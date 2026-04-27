@@ -10,6 +10,10 @@ import {
   getAuth,
   GoogleAuthProvider,
   GithubAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -51,11 +55,21 @@ const githubProvider = new GithubAuthProvider();
 githubProvider.addScope('read:user');
 githubProvider.addScope('user:email');
 
+const facebookProvider = new FacebookAuthProvider();
+
+const appleProvider = new OAuthProvider('apple.com');
+appleProvider.addScope('email');
+appleProvider.addScope('name');
+
 export {
   app,
   auth,
   googleProvider,
   githubProvider,
+  facebookProvider,
+  appleProvider,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,

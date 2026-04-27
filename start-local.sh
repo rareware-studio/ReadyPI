@@ -4,8 +4,7 @@ echo "🚀 Starting ReadyPI Local Development Servers..."
 echo ""
 
 # Kill any existing processes on ports 8080 and 3001
-lsof -ti:8787 | xargs kill -9 2>/dev/null
-lsof -ti:3001 | xargs kill -9 2>/dev/null
+lsof -n -P -ti:8787,3001 | xargs kill -9 2>/dev/null
 
 echo "✅ Ports cleared"
 echo ""
@@ -13,7 +12,7 @@ echo ""
 # Start API server in background
 echo "🔧 Starting API Server on http://localhost:8787..."
 cd /Users/ahmedxriyaz/Desktop/ReadyPI/api
-node server.js > /tmp/readypi-api.log 2>&1 &
+node server.js > logs/readypi-api.log 2>&1 &
 API_PID=$!
 echo "   PID: $API_PID"
 
@@ -25,7 +24,7 @@ if curl -s http://localhost:8787/health > /dev/null; then
   echo "✅ API Server running"
 else
   echo "❌ API Server failed to start"
-  echo "   Check logs: tail -f /tmp/readypi-api.log"
+  echo "   Check logs: tail -f logs/readypi-api.log"
 fi
 
 echo ""
@@ -33,7 +32,7 @@ echo ""
 # Start Dashboard in background
 echo "🎨 Starting Dashboard on http://localhost:3001..."
 cd /Users/ahmedxriyaz/Desktop/ReadyPI/dashboard
-npm run dev > /tmp/readypi-dashboard.log 2>&1 &
+npm run dev > logs/readypi-dashboard.log 2>&1 &
 DASHBOARD_PID=$!
 echo "   PID: $DASHBOARD_PID"
 
@@ -47,8 +46,8 @@ echo "🔧 API:        http://localhost:8787"
 echo "📊 Health:     http://localhost:8787/health"
 echo ""
 echo "📝 Logs:"
-echo "   API:        tail -f /tmp/readypi-api.log"
-echo "   Dashboard:  tail -f /tmp/readypi-dashboard.log"
+echo "   API:        tail -f logs/readypi-api.log"
+echo "   Dashboard:  tail -f logs/readypi-dashboard.log"
 echo ""
 echo "🛑 To stop servers:"
 echo "   kill $API_PID $DASHBOARD_PID"
@@ -66,4 +65,4 @@ echo "Press Ctrl+C to view logs, or just visit http://localhost:3001"
 echo ""
 
 # Keep script running and show logs
-tail -f /tmp/readypi-dashboard.log
+tail -f logs/readypi-dashboard.log

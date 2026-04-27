@@ -37,7 +37,7 @@ export default function PlaygroundPage() {
     e.preventDefault()
     if (!chatInput.trim() || isSending) return
     
-    const newUserMessage = { role: 'user', content: chatInput }
+    const newUserMessage: Message = { role: 'user', content: chatInput }
     setMessages(prev => [...prev, newUserMessage])
     setChatInput('')
     setIsSending(true)

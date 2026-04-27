@@ -28,6 +28,10 @@ import {
   auth,
   googleProvider,
   githubProvider,
+  facebookProvider,
+  appleProvider,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -53,6 +57,10 @@ interface AuthContextValue extends AuthState {
   signupWithEmail: (email: string, password: string, fullName?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginWithGithub: () => Promise<void>;
+  loginWithFacebook: () => Promise<void>;
+  loginWithApple: () => Promise<void>;
+  sendPhoneCode: (phoneNumber: string, containerId: string) => Promise<any>;
+  verifyPhoneCode: (confirmationResult: any, code: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   refreshProfile: () => Promise<void>;
@@ -200,6 +208,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [exchangeToken]);
 
+  const loginWithFacebook = useCallback(async () => {
+    patch({ loading: true, error: null });
+    try {
+      const credential = await signInWithPopup(auth, facebookProvider);
+      await exchangeToken(credential.user);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Facebook login failed';
+      patch({ loading: false, error: message });
+      throw err;
+    }
+  }, [exchangeToken]);
+
+  const loginWithApple = useCallback(async () => {
+    patch({ loading: true, error: null });
+    try {
+      const credential = await signInWithPopup(auth, appleProvider);
+      await exchangeToken(credential.user);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Apple login failed';
+      patch({ loading: false, error: message });
+      throw err;
+    }
+  }, [exchangeToken]);
+
+  const sendPhoneCode = useCallback(async (phoneNumber: string, containerId: string) => {
+    patch({ error: null });
+    try {
+      const appVerifier = new RecaptchaVerifier(auth, containerId, {
+        size: 'invisible',
+      });
+      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      return confirmationResult;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send phone verification code';
+      patch({ error: message });
+      throw err;
+    }
+  }, []);
+
+  const verifyPhoneCode = useCallback(async (confirmationResult: any, code: string) => {
+    patch({ loading: true, error: null });
+    try {
+      const credential = await confirmationResult.confirm(code);
+      await exchangeToken(credential.user);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Invalid verification code';
+      patch({ loading: false, error: message });
+      throw err;
+    }
+  }, [exchangeToken]);
+
   const logout = useCallback(async () => {
     try {
       await authAPI.logout().catch(() => {});
@@ -283,6 +342,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signupWithEmail,
         loginWithGoogle,
         loginWithGithub,
+        loginWithFacebook,
+        loginWithApple,
+        sendPhoneCode,
+        verifyPhoneCode,
         logout,
         clearError,
         refreshProfile,

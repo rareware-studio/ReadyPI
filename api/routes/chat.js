@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyAPIKey, verifyJWT } = require('../middleware/auth');
-const { apiKeyRateLimiter, dashboardRateLimiter } = require('../middleware/rateLimit');
+const { apiKeyRateLimiter } = require('../middleware/rateLimit');
 const aiRouter = require('../services/router');
 const tokenizer = require('../services/tokenizer');
 const db = require('../utils/db');
@@ -12,7 +12,7 @@ const { v4: uuidv4 } = require('uuid');
  * POST /v1/chat/playground
  * Playground chat endpoint for logged-in users (JWT auth)
  */
-router.post('/playground', verifyJWT, dashboardRateLimiter, async (req, res) => {
+router.post('/playground', verifyJWT, async (req, res) => {
   const requestId = uuidv4();
   const startTime = Date.now();
 

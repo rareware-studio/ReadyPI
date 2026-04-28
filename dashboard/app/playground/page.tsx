@@ -19,7 +19,7 @@ export default function PlaygroundPage() {
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful AI assistant connected via ReadyPi.')
   const [chatInput, setChatInput] = useState('')
   const [isSending, setIsSending] = useState(false)
-  const [model, setModel] = useState('meta-llama/llama-3-70b-instruct')
+  const [model, setModel] = useState('google/gemini-1.5-flash')
   const [temp, setTemp] = useState(0.7)
   const [maxTokens, setMaxTokens] = useState(1024)
   const [messages, setMessages] = useState<Message[]>([
@@ -171,6 +171,28 @@ export default function PlaygroundPage() {
                 </optgroup>
                 <optgroup label="Anthropic">
                   <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                </optgroup>
+                <optgroup label="ZhipuAI (Modal)">
+                  <option value="zai-org/glm-5.1">GLM 5.1 (FP8)</option>
+                </optgroup>
+                <optgroup label="AWS Bedrock — Amazon">
+                  <option value="bedrock/nova-micro">Nova Micro (Fastest)</option>
+                  <option value="bedrock/nova-lite">Nova Lite</option>
+                  <option value="bedrock/nova-pro">Nova Pro</option>
+                  <option value="bedrock/titan">Titan Express</option>
+                </optgroup>
+                <optgroup label="AWS Bedrock — Anthropic">
+                  <option value="bedrock/claude-haiku-3">Claude 3 Haiku</option>
+                  <option value="bedrock/claude-haiku">Claude 3.5 Haiku</option>
+                  <option value="bedrock/claude-sonnet">Claude 3.5 Sonnet</option>
+                </optgroup>
+                <optgroup label="AWS Bedrock — Meta">
+                  <option value="bedrock/llama-8b">Llama 3.1 8B</option>
+                  <option value="bedrock/llama-70b">Llama 3.1 70B</option>
+                </optgroup>
+                <optgroup label="AWS Bedrock — Mistral">
+                  <option value="bedrock/mistral-7b">Mistral 7B</option>
+                  <option value="bedrock/mixtral">Mixtral 8x7B</option>
                 </optgroup>
               </select>
             </div>

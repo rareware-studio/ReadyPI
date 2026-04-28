@@ -92,7 +92,7 @@ export default function UserDashboard() {
     try {
       setCreatingKey(true)
       const { data } = await keysAPI.create(newKeyName.trim())
-      setNewlyCreatedKey(data.api_key) // Show full key once
+      setNewlyCreatedKey(data.key) // Show full key once
       setNewKeyName('')
       await fetchKeys()
     } catch (err) {
@@ -136,12 +136,19 @@ export default function UserDashboard() {
           </Link>
           <div className="h-4 w-[1px] bg-[#262626]"></div>
           <div className="flex items-center gap-2 text-white font-semibold uppercase tracking-widest font-technical">
-            <TerminalSquare size={18} className="text-[#FF4500]" /> Console Dashboard
+            <TerminalSquare size={18} className="text-[#FF4500]" /> Console
+          </div>
+          <div className="h-4 w-[1px] bg-[#262626] hidden md:block"></div>
+          <div className="hidden md:flex items-center gap-1">
+            <Link href="/playground" className="px-3 py-1.5 text-xs uppercase tracking-widest text-[#948e9c] hover:text-[#FF4500] hover:bg-[#FF4500]/5 rounded transition-colors font-technical">Playground</Link>
+            <Link href="/models" className="px-3 py-1.5 text-xs uppercase tracking-widest text-[#948e9c] hover:text-[#FF4500] hover:bg-[#FF4500]/5 rounded transition-colors font-technical">Models</Link>
+            <Link href="/billing" className="px-3 py-1.5 text-xs uppercase tracking-widest text-[#948e9c] hover:text-[#FF4500] hover:bg-[#FF4500]/5 rounded transition-colors font-technical">Billing</Link>
+            <Link href="/docs" className="px-3 py-1.5 text-xs uppercase tracking-widest text-[#948e9c] hover:text-[#FF4500] hover:bg-[#FF4500]/5 rounded transition-colors font-technical">Docs</Link>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-sm font-technical text-[#948e9c]">
-            {user.email}
+            {user.full_name || user.email?.split('@')[0] || 'User'}
           </div>
           <button 
             onClick={() => logout()} 
